@@ -11,7 +11,8 @@ class Motus {
     async handle(message, args) {
         if (args.length === 0) {
             const game = this.newGame(message.author.id);
-            message.reply("\n" + this.charToEmoji(game.word[0]) + " 🟦".repeat(game.word.length-1));
+            message.reply("\n" + this.charToEmoji(game.word[0]) + " 🟦".repeat(game.word.length-1))
+            .catch(e => console.log(e));
         } else {
             const game = this.games[message.author.id];
             if (game) {
@@ -60,15 +61,19 @@ class Motus {
 
                             delete this.games[message.author.id];
                         }
-                        message.reply(reply);
+                        message.reply(reply)
+                        .catch(e => console.log(e));
                     } else {
-                        message.channel.send("Ton mot n'est pas dans mon dictionnaire de référence");
+                        message.reply("Ton mot n'est pas dans mon dictionnaire de référence")
+                        .catch(e => console.log(e));
                     }
                 } else {
-                    message.channel.send("Ton mot n'est même pas de la bonne taille");
+                    message.reply("Ton mot n'est même pas de la bonne taille")
+                    .catch(e => console.log(e));
                 }
             } else {
-                message.channel.send("Tu n'as pas lancé de partie");
+                message.reply("Tu n'as pas lancé de partie")
+                .catch(e => console.log(e));
             }
         }
     }
