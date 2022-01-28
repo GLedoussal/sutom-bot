@@ -1,65 +1,63 @@
-require('dotenv').config();
+require('dotenv').config()
 
 const fs = require('fs');
 const Discord = require('discord.js');
+const Intents = Discord.Intents;
+const Motus = require('./modules/Motus');
 
-global.client = new Discord.Client();
+const { REST } = require('@discordjs/rest');
+const { Routes } = require('discord-api-types/v9');
+const intents = new Intents();
+intents.add(Intents.FLAGS.GUILDS);
+
+global.client = new Discord.Client({ intents: intents });
 client.commands = new Discord.Collection();
 
+global.motusWorker = new Motus();
+
 const commandFolders = fs.readdirSync('./commands');
+
+const slashCommands = [];
+
 for (const folder of commandFolders) {
     const commandFiles = fs.readdirSync(`./commands/${folder}`).filter(file => file.endsWith('.js'));
     for (const file of commandFiles) {
         const command = require(`./commands/${folder}/${file}`);
         client.commands.set(command.name, command);
+        if (command.data) {
+            slashCommands.push(command.data.toJSON());
+        }
     }
 }
 
-
-client.once('ready', () => {
+client.once('ready', async () => {
     console.log('Ready!');
+
+    client.guilds.cache.map(guild => {
+        if (slashCommands.length > 0) {
+            const rest = new REST({ version: '9' }).setToken(process.env.TOKEN);
+            rest.put(Routes.applicationGuildCommands(client.application.id, guild.id), { body: slashCommands })
+            .catch(console.error);
+        }
+    });
 });
 
-const Motus = require('./modules/Motus');
-global.motusWorker = new Motus();
+client.on('interactionCreate', async interaction => {
+    if (!interaction.isCommand()) return;
 
-client.on('message', message => {
-    if (message.author.bot) return;
+    const { commandName } = interaction;
 
-    if (!message.content.startsWith(process.env.PREFIX)) return;
+    if (!client.commands.has(commandName)) return;
 
-    const messageArgs = message.content.slice(process.env.PREFIX.length).trim().split(/ +/);
-    const messageCommand = messageArgs.shift().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const command = client.commands.get(commandName);
 
-    if (!client.commands.has(messageCommand)) return;
-
-    try {
-        const command = client.commands.get(messageCommand);
-
-        if (command.perm) {
-            let granted = Permission.check(message, command.level);
-            if (!granted) return;
-        }
-
-        if (command.args && !messageArgs.length) {
-            let reply = `Les calculs sont pas bons, ${message.author}!`;
-
-            if (command.usage) {
-                reply += `\nCette commande s'utilise comme ça: \`${process.env.PREFIX}${command.name} ${command.usage}\``;
-            }
-
-            return message.channel.send(reply);
-        }
-
-        try {
-            command.execute(message, messageArgs);
-        } catch (error) {
-            console.error(error);
-            message.reply('je suis désolée mais je n\'ai pas réussi à exécuter ta commande.');
-        }
-    } catch (error) {
-        console.error(error);
+    if (command.perm) {
+        let granted = Permission.check(message, command.level);
+        if (!granted) return;
     }
+
+    if (client.commands.get(commandName).execute)
+        client.commands.get(commandName).execute(interaction);
 });
 
 client.login(process.env.TOKEN);
