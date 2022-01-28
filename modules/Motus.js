@@ -115,7 +115,7 @@ class Motus {
                         }, {string: {}, characters: {}, done: []});
                         game.guesses.push(Object.values(result.string).join(" "));
 
-                        let reply = "\n" + game.guesses.join("\n");
+                        let reply = "Coup n°" + game.guesses.length + "\n" + game.guesses.join("\n");
 
                         if (result.done.length === game.word.length) {
                             reply += "\nMot trouvé en " + game.guesses.length + " coups.";
